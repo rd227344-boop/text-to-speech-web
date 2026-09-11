@@ -1,0 +1,8 @@
+{
+  "name": "Text to Speech",
+  "description": "Convert text to high-quality spoken audio with Gemini AI voice synthesis, tone controls, speech customization, and instant audio export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
