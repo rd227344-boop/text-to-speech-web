@@ -434,4 +434,5 @@ export default function App() {
       <InfoModal isOpen={showInfoModal} onClose={() => setShowInfoModal(false)} />
     </div>
   );
-}
+      }
+                
