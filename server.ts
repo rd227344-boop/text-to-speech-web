@@ -83,59 +83,108 @@ async function startServer() {
 
       const ai = getAi();
 
-      let generateConfig: any = {
-        responseModalities: [Modality.AUDIO],
-      };
+      // Long scripts are split into smaller Gemini TTS requests and the
+      // returned PCM audio is joined into one WAV file.
+      const MAX_CHARS_PER_CHUNK = 700;
 
-      let promptContent = text.trim();
+      function splitTextIntoChunks(input: string, maxChars: number): string[] {
+        const normalized = input.replace(/\r\n/g, "\n").trim();
+        if (normalized.length <= maxChars) return [normalized];
 
-      if (multiSpeaker && speaker1 && speaker2) {
-        generateConfig.speechConfig = {
-          multiSpeakerVoiceConfig: {
-            speakerVoiceConfigs: [
-              {
-                speaker: speaker1.name || "Speaker 1",
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: speaker1.voice || "Kore" },
-                },
-              },
-              {
-                speaker: speaker2.name || "Speaker 2",
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: speaker2.voice || "Puck" },
-                },
-              },
-            ],
-          },
-        };
-      } else {
-        if (tone && tone !== "Default / Natural") {
-          promptContent = `Speak with a ${tone.toLowerCase()} tone: ${promptContent}`;
+        const chunks: string[] = [];
+        let remaining = normalized;
+
+        while (remaining.length > maxChars) {
+          const window = remaining.slice(0, maxChars);
+          let splitAt = -1;
+
+          // Prefer paragraph/sentence boundaries.
+          const boundaryRegex = /[\n.!?।॥]+(?:\s+|$)/g;
+          let match: RegExpExecArray | null;
+
+          while ((match = boundaryRegex.exec(window)) !== null) {
+            splitAt = match.index + match[0].length;
+          }
+
+          // Otherwise split at the last space.
+          if (splitAt <= 0) splitAt = window.lastIndexOf(" ");
+
+          // Last-resort hard split.
+          if (splitAt <= 0) splitAt = maxChars;
+
+          chunks.push(remaining.slice(0, splitAt).trim());
+          remaining = remaining.slice(splitAt).trim();
         }
-        generateConfig.speechConfig = {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: voice },
-          },
+
+        if (remaining) chunks.push(remaining);
+        return chunks.filter(Boolean);
+      }
+
+      const chunks = splitTextIntoChunks(text, MAX_CHARS_PER_CHUNK);
+      const pcmChunks: Buffer[] = [];
+
+      for (let i = 0; i < chunks.length; i++) {
+        let generateConfig: any = {
+          responseModalities: [Modality.AUDIO],
         };
-      }
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-tts-preview",
-        contents: [{ parts: [{ text: promptContent }] }],
-        config: generateConfig,
-      });
+        let promptContent = chunks[i];
 
-      const audioPart = response.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-      if (!audioPart?.data) {
-        return res.status(500).json({
-          error: "No audio data received from Gemini Text-to-Speech service.",
+        if (multiSpeaker && speaker1 && speaker2) {
+          generateConfig.speechConfig = {
+            multiSpeakerVoiceConfig: {
+              speakerVoiceConfigs: [
+                {
+                  speaker: speaker1.name || "Speaker 1",
+                  voiceConfig: {
+                    prebuiltVoiceConfig: { voiceName: speaker1.voice || "Kore" },
+                  },
+                },
+                {
+                  speaker: speaker2.name || "Speaker 2",
+                  voiceConfig: {
+                    prebuiltVoiceConfig: { voiceName: speaker2.voice || "Puck" },
+                  },
+                },
+              ],
+            },
+          };
+        } else {
+          if (tone && tone !== "Default / Natural") {
+            promptContent = `Speak with a ${tone.toLowerCase()} tone: ${promptContent}`;
+          }
+
+          generateConfig.speechConfig = {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: voice },
+            },
+          };
+        }
+
+        const response = await ai.models.generateContent({
+          model: "gemini-3.1-flash-tts-preview",
+          contents: [{ parts: [{ text: promptContent }] }],
+          config: generateConfig,
         });
+
+        const audioPart = response.candidates?.[0]?.content?.parts?.find(
+          (part: any) => part.inlineData?.data
+        )?.inlineData;
+
+        if (!audioPart?.data) {
+          throw new Error(
+            `No audio data received for script part ${i + 1} of ${chunks.length}.`
+          );
+        }
+
+        pcmChunks.push(Buffer.from(audioPart.data, "base64"));
       }
 
-      const rawPcmBytes = Buffer.from(audioPart.data, "base64");
+      // All chunks use the same 24kHz mono PCM format, so they can be
+      // concatenated directly before creating the final WAV header.
+      const rawPcmBytes = Buffer.concat(pcmChunks);
       const wavBuffer = pcmToWav(new Uint8Array(rawPcmBytes), 24000, 1);
       const wavBase64 = wavBuffer.toString("base64");
-
       const durationSeconds = rawPcmBytes.byteLength / (24000 * 2);
 
       return res.json({
@@ -144,11 +193,12 @@ async function startServer() {
         sampleRate: 24000,
         durationSeconds: Math.round(durationSeconds * 10) / 10,
         voice: multiSpeaker ? "Multi-Speaker" : voice,
+        chunks: chunks.length,
       });
     } catch (err: any) {
       console.error("TTS Generation Error:", err);
       return res.status(500).json({
-        error: err.message || "Failed to generate speech audio.",
+        error: err?.message || "Failed to generate speech audio.",
       });
     }
   });
@@ -174,3 +224,4 @@ async function startServer() {
 }
 
 startServer();
+      
