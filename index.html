@@ -1,3 +1,5 @@
+
+
 <!doctype html>
 <html lang="en">
   <head>
@@ -12,10 +14,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+    <!-- Monetag Popunder Direct Link Script -->
+    <script>
+      if (!sessionStorage.getItem('monetagAdShown')) {
+        document.addEventListener('click', function handler() {
+          window.open('https://omg10.com/4/11933068', '_blank');
+          sessionStorage.setItem('monetagAdShown', 'true');
+          document.removeEventListener('click', handler);
+        }, { once: true });
+      }
+    </script>
   </head>
   <body class="bg-[#0A0A0A] text-[#E0E0E0] antialiased font-sans selection:bg-sky-500 selection:text-white">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
