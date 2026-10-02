@@ -132,6 +132,7 @@ export default function App() {
 
   // Convert via Gemini AI
   const handleGenerateGeminiTTS = async () => {
+      window.open("https://omg10.com/4/11933068", "_blank");
     if (!text.trim()) {
       setErrorMessage('Please enter some text before converting to speech.');
       return;
