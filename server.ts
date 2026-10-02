@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI, Modality } from "@google/genai";
@@ -57,6 +58,7 @@ function getAi(): GoogleGenAI {
 
 async function startServer() {
   const app = express();
+  app.use(cors());
   const PORT = 3000;
 
   app.use(express.json({ limit: "10mb" }));
