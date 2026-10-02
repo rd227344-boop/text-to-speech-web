@@ -87,7 +87,7 @@ async function startServer() {
 
       // Long scripts are split into smaller Gemini TTS requests and the
       // returned PCM audio is joined into one WAV file.
-      const MAX_CHARS_PER_CHUNK = 1000;
+      const MAX_CHARS_PER_CHUNK = 800;
 
       function splitTextIntoChunks(input: string, maxChars: number): string[] {
         const normalized = input.replace(/\r\n/g, "\n").trim();
@@ -180,6 +180,8 @@ async function startServer() {
         }
 
         pcmChunks.push(Buffer.from(audioPart.data, "base64"));
+            if (i < chunks.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       }
 
       // All chunks use the same 24kHz mono PCM format, so they can be
