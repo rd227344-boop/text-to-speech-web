@@ -191,21 +191,20 @@ async function startServer() {
       const wavBase64 = wavBuffer.toString("base64");
       const durationSeconds = rawPcmBytes.byteLength / (24000 * 2);
 
-      return res.json({
-        audioBase64: wavBase64,
-        mimeType: "audio/wav",
-        sampleRate: 24000,
-        durationSeconds: Math.round(durationSeconds * 10) / 10,
-        voice: multiSpeaker ? "Multi-Speaker" : voice,
-        chunks: chunks.length,
-      });
-    } catch (err: any) {
-      console.error("TTS Generation Error:", err);
-      return res.status(500).json({
-        error: err?.message || "Failed to generate speech audio.",
-      });
-    }
-  });
+          return res.json({
+      audioBase64,
+      mimeType: "audio/wav",
+      sampleRate: 24000,
+      durationSeconds: Math.round(durationSeconds * 10) / 10,
+      voice: multiSpeaker ? "Multi-Speaker" : voice,
+      chunks: chunks.length,
+    });
+  } catch (err: any) {
+    console.error("TTS Generation Error:", err);
+    return res.status(500).json({
+      error: err.message || "Failed to generate speech audio.",
+    });
+      }
 
   // Vite middleware for dev or static server for prod
   if (process.env.NODE_ENV !== "production") {
