@@ -32,6 +32,21 @@ import { base64ToBlob, WebSpeechController } from './utils/audio';
 import { Analytics } from '@vercel/analytics/react';
 
 const STORAGE_KEY = 'tts_app_history_v1';
+function friendlyError(err: unknown): string {
+  const msg = String((err as any)?.message ?? err ?? '');
+  const raw = msg.toLowerCase();
+
+  if (raw.includes('429') || raw.includes('quota') || raw.includes('resource_exhausted')) {
+    return "Today's free voice limit has been reached. Please try again tomorrow, or switch to Browser Speech (free and unlimited).";
+  }
+  if (raw.includes('failed to fetch') || raw.includes('network')) {
+    return 'Connection problem. Please check your internet and try again.';
+  }
+  if (msg.length > 0 && msg.length < 120 && !msg.includes('{')) {
+    return msg;
+  }
+  return 'Something went wrong while generating audio. Please try again or use Browser Speech.';
+}
 
 export default function App() {
   const [engineMode, setEngineMode] = useState<EngineMode>('gemini');
@@ -188,10 +203,7 @@ export default function App() {
       setHistory((prev) => [historyItem, ...prev]);
     } catch (err: any) {
       console.error('Generation Error:', err);
-      setErrorMessage(
-        err.message ||
-          'Failed to generate speech. Please check your text or switch to Browser Speech mode.'
-      );
+            setErrorMessage(friendlyError(err));
     } finally {
       setIsGenerating(false);
     }
@@ -277,7 +289,7 @@ export default function App() {
           >
             <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-semibold text-rose-200">Speech Generation Notice</p>
+              <p className="font-semibold text-rose-200">Couldn't generate audio</p>
               <p className="mt-0.5 leading-relaxed text-[#CCCCCC]">{errorMessage}</p>
             </div>
             {engineMode === 'gemini' && (
@@ -421,6 +433,15 @@ export default function App() {
           />
         )}
       </main>
+            <footer className="border-t border-[#222222] py-6 text-center text-xs text-[#888888]">
+        <nav aria-label="Footer" className="flex justify-center gap-4 mb-2">
+          <a href="/about.html" className="py-2 hover:text-sky-400">About</a>
+          <a href="/privacy.html" className="py-2 hover:text-sky-400">Privacy</a>
+          <a href="/terms.html" className="py-2 hover:text-sky-400">Terms</a>
+          <a href="/contact.html" className="py-2 hover:text-sky-400">Contact</a>
+        </nav>
+        <p>Voices are AI-generated.</p>
+      </footer>
 
       {/* History Drawer Modal */}
       <HistoryDrawer
