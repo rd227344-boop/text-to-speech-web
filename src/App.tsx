@@ -29,7 +29,6 @@ import {
   TTSResponse,
 } from './types';
 import { base64ToBlob, WebSpeechController } from './utils/audio';
-import { Analytics } from '@vercel/analytics/react';
 
 const STORAGE_KEY = 'tts_app_history_v1';
 function friendlyError(err: unknown): string {
@@ -455,7 +454,6 @@ export default function App() {
 
       {/* Info / Guide Modal */}
       <InfoModal isOpen={showInfoModal} onClose={() => setShowInfoModal(false)} />
-      <Analytics />
     </div>
   );
       }
