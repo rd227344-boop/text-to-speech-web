@@ -1,99 +1,64 @@
 import React, { useState, useEffect } from 'react';
-import { Square, Sparkles, Volume2, Globe, Music, User, Sliders, Play, RotateCcw } from 'lucide-react';
+import {
+  Volume2,
+  Square,
+  Sparkles,
+  History,
+  Info,
+  Globe,
+  Music,
+  User,
+  Sliders,
+  Copy,
+  Trash2,
+  BookOpen,
+  MessageSquare,
+  Mic
+} from 'lucide-react';
 
 interface Character {
   id: string;
   name: string;
   role: string;
-  avatar: string;
+  lang: string;
   pitch: number;
   rate: number;
-  langPref: string;
-  description: string;
 }
 
 const CHARACTERS: Character[] = [
-  {
-    id: 'storyteller',
-    name: 'Kabir',
-    role: 'Storyteller',
-    avatar: '📖',
-    pitch: 0.9,
-    rate: 0.9,
-    langPref: 'hi',
-    description: 'Deep, expressive voice for narration and kahaniyan.'
-  },
-  {
-    id: 'anchor',
-    name: 'Ananya',
-    role: 'News Anchor',
-    avatar: '🎙️',
-    pitch: 1.0,
-    rate: 1.05,
-    langPref: 'hi',
-    description: 'Clear, authoritative tone for news and announcements.'
-  },
-  {
-    id: 'gamer',
-    name: 'Echo Gamer',
-    role: 'Streamer / Gamer',
-    avatar: '🎮',
-    pitch: 1.15,
-    rate: 1.15,
-    langPref: 'en',
-    description: 'High energy, fast-paced voice for gaming highlights.'
-  },
-  {
-    id: 'assistant',
-    name: 'Aria AI',
-    role: 'Virtual Assistant',
-    avatar: '🤖',
-    pitch: 1.05,
-    rate: 1.0,
-    langPref: 'en',
-    description: 'Polite, calm, and professional AI voice.'
-  },
-  {
-    id: 'anime',
-    name: 'Ryu',
-    role: 'Anime Hero',
-    avatar: '⚔️',
-    pitch: 1.25,
-    rate: 1.1,
-    langPref: 'ja',
-    description: 'Dramatic and intense hero character voice.'
-  }
+  { id: 'narration', name: 'Kabir (Storyteller)', role: 'Deep & Expressive', lang: 'hi', pitch: 0.9, rate: 0.9 },
+  { id: 'news', name: 'Ananya (News Anchor)', role: 'Clear & Formal', lang: 'hi', pitch: 1.0, rate: 1.05 },
+  { id: 'gamer', name: 'Echo (Streamer)', role: 'Fast & High Energy', lang: 'en', pitch: 1.15, rate: 1.15 },
+  { id: 'assistant', name: 'Aria (AI Assistant)', role: 'Polite & Smooth', lang: 'en', pitch: 1.05, rate: 1.0 }
 ];
 
-const PRESET_SCRIPTS = [
-  {
-    label: 'Hindi Story',
-    text: 'Ek samay ki baat hai, ek door ke gaon mein ek chalak lomdi rehti thi. Usko har din naye adventurous kaam karna pasand tha.'
-  },
-  {
-    label: 'Tech News',
-    text: 'Welcome to today’s tech update. Artificial intelligence technology is evolving rapidly, enabling hyper-realistic neural voice synthesis.'
-  },
-  {
-    label: 'Gaming Intro',
-    text: 'What is up guys, welcome back to the channel! Today we are going for an incredible clutch in Free Fire MAX. Smash that like button!'
-  }
+const STYLES = [
+  { id: 'default', label: 'Default / Natural', pitch: 1.0, rate: 1.0 },
+  { id: 'cheerful', label: 'Friendly & Cheerful', pitch: 1.2, rate: 1.05 },
+  { id: 'soothing', label: 'Calm & Soothing', pitch: 0.85, rate: 0.85 },
+  { id: 'formal', label: 'Professional & Formal', pitch: 1.0, rate: 0.95 },
+  { id: 'dramatic', label: 'Dramatic Storyteller', pitch: 0.75, rate: 0.8 },
+  { id: 'energetic', label: 'Energetic & Fast', pitch: 1.25, rate: 1.2 }
+];
+
+const SAMPLE_SCRIPTS = [
+  'नियम नहीं, कहीं कोई कसाव नहीं, हर जगह एक स्वच्छन्द खुलाव, एक बिखरी हुई-सी अनियमितता। बनारस की गलियों से भी पतली गलियाँ और लखनऊ की सड़कों से चौड़ी सड़कें।',
+  'Welcome to the next generation of artificial intelligence voice synthesis. Ultra fast, highly natural, and completely customized.',
+  'What is up gaming squad! Today we are diving straight into intense survival gameplay.'
 ];
 
 export default function App() {
-  const [text, setText] = useState<string>(PRESET_SCRIPTS[0].text);
+  const [text, setText] = useState<string>(SAMPLE_SCRIPTS[0]);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>('');
   const [selectedLang, setSelectedLang] = useState<string>('all');
-  const [selectedChar, setSelectedChar] = useState<string>('storyteller');
-  const [selectedStyle, setSelectedStyle] = useState<string>('Dramatic');
+  const [selectedChar, setSelectedChar] = useState<string>('narration');
+  const [selectedStyle, setSelectedStyle] = useState<string>('soothing');
   
-  const [rate, setRate] = useState<number>(1.0);
-  const [pitch, setPitch] = useState<number>(1.0);
-  const [volume, setVolume] = useState<number>(1.0);
-  
+  const [pitch, setPitch] = useState<number>(0.85);
+  const [rate, setRate] = useState<number>(0.85);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [copied, setCopied] = useState<boolean>(false);
 
   useEffect(() => {
     const loadVoices = () => {
@@ -109,16 +74,23 @@ export default function App() {
     window.speechSynthesis.onvoiceschanged = loadVoices;
   }, [selectedVoice]);
 
-  const applyCharacterPreset = (charId: string) => {
-    const char = CHARACTERS.find(c => c.id === charId);
-    if (!char) return;
-    setSelectedChar(charId);
-    setPitch(char.pitch);
-    setRate(char.rate);
+  const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const charCount = text.length;
 
-    const matchingVoice = voices.find(v => v.lang.toLowerCase().startsWith(char.langPref));
-    if (matchingVoice) {
-      setSelectedVoice(matchingVoice.name);
+  const handleStyleSelect = (styleObj: typeof STYLES[0]) => {
+    setSelectedStyle(styleObj.id);
+    setPitch(styleObj.pitch);
+    setRate(styleObj.rate);
+  };
+
+  const handleCharSelect = (charId: string) => {
+    setSelectedChar(charId);
+    const char = CHARACTERS.find(c => c.id === charId);
+    if (char) {
+      setPitch(char.pitch);
+      setRate(char.rate);
+      const match = voices.find(v => v.lang.toLowerCase().startsWith(char.lang));
+      if (match) setSelectedVoice(match.name);
     }
   };
 
@@ -131,23 +103,21 @@ export default function App() {
     if (!text.trim()) return;
 
     if (!('speechSynthesis' in window)) {
-      setErrorMsg('Speech synthesis is not supported in this browser.');
+      alert('Speech synthesis is not supported in this browser.');
       return;
     }
 
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
-    const vObj = voices.find(v => v.name === selectedVoice);
-    if (vObj) utterance.voice = vObj;
+    const voiceObj = voices.find(v => v.name === selectedVoice);
+    if (voiceObj) utterance.voice = voiceObj;
 
     utterance.rate = rate;
     utterance.pitch = pitch;
-    utterance.volume = volume;
 
     utterance.onstart = () => {
       setIsSpeaking(true);
-      setErrorMsg(null);
     };
 
     utterance.onend = () => {
@@ -167,220 +137,213 @@ export default function App() {
     setIsSpeaking(false);
   };
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <div className="min-h-screen bg-[#0d0d12] text-white flex flex-col font-sans relative overflow-x-hidden">
-      {/* Background Glows */}
-      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-cyan-500/15 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] bg-purple-500/15 rounded-full blur-[140px] pointer-events-none" />
-
-      {/* Navbar */}
-      <nav className="relative z-10 max-w-7xl w-full mx-auto px-6 py-5 flex items-center justify-between border-b border-white/5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-purple-600 flex items-center justify-center font-bold text-xl shadow-lg shadow-cyan-500/20">
-            🎙️
+    <div className="min-h-screen bg-[#0e0f12] text-[#e1e4ea] font-sans flex flex-col items-center p-3 sm:p-6 pb-24">
+      <div className="max-w-3xl w-full flex flex-col gap-5">
+        
+        {/* Top Header */}
+        <header className="flex items-center justify-between pt-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-lg shadow-cyan-500/10">
+              <Volume2 className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="font-extrabold text-lg sm:text-xl text-white tracking-wide">Text to Speech</h1>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">AI</span>
+              </div>
+              <p className="text-xs text-slate-400 font-medium">Neural voice synthesis & tone architecture</p>
+            </div>
           </div>
-          <span className="font-extrabold text-2xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-white/90 to-white/50">
-            VOICEIFY <span className="text-cyan-400 text-xs font-semibold px-2 py-0.5 rounded-full bg-cyan-400/10 border border-cyan-400/30">PRO</span>
-          </span>
-        </div>
 
-        <button className="px-5 py-2 rounded-full bg-white text-black font-bold text-xs hover:bg-white/90 transition shadow-lg shadow-white/10 cursor-pointer">
-          Get Started
-        </button>
-      </nav>
+          <button className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:bg-white/10 transition cursor-pointer">
+            <History className="w-4 h-4" />
+          </button>
+        </header>
 
-      {/* Hero Section */}
-      <main className="relative z-10 max-w-6xl w-full mx-auto px-4 py-8 flex flex-col items-center">
-        {/* Header Pill */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md text-xs font-medium text-cyan-300 mb-6">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Multi-Character • Multi-Language AI Voice Generator</span>
-        </div>
-
-        <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-center tracking-tight max-w-3xl leading-tight mb-4">
-          Create Studio AI Voices with <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400">Custom Characters</span>
-        </h1>
-
-        <p className="text-xs sm:text-sm text-white/50 text-center max-w-xl mb-8">
-          Select character personas, tweak emotion tones, adjust speech pitch, and generate instant neural voiceovers.
-        </p>
-
-        {/* Character Personas Selector */}
-        <div className="w-full max-w-4xl mb-6">
-          <label className="text-xs font-bold text-white/60 mb-3 block uppercase tracking-wider flex items-center gap-2">
-            <User className="w-4 h-4 text-cyan-400" /> Select AI Character Persona
-          </label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-            {CHARACTERS.map((char) => {
-              const isSelected = selectedChar === char.id;
-              const cardClass = isSelected
-                ? "p-3.5 rounded-2xl border text-left transition-all duration-200 flex flex-col justify-between bg-gradient-to-b from-cyan-500/20 to-purple-600/20 border-cyan-400/60 shadow-lg shadow-cyan-500/20 cursor-pointer"
-                : "p-3.5 rounded-2xl border text-left transition-all duration-200 flex flex-col justify-between bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 cursor-pointer";
-
-              return (
-                <div
-                  key={char.id}
-                  onClick={() => applyCharacterPreset(char.id)}
-                  className={cardClass}
-                >
-                  <div className="text-2xl mb-2">{char.avatar}</div>
-                  <div>
-                    <h3 className="font-bold text-xs text-white mb-0.5">{char.name}</h3>
-                    <p className="text-[10px] text-cyan-300/80 font-medium">{char.role}</p>
-                  </div>
-                </div>
-              );
-            })}
+        {/* Engine Switcher */}
+        <div className="flex items-center justify-between gap-2 p-1.5 rounded-2xl bg-white/[0.03] border border-white/10">
+          <div className="flex items-center gap-1.5 flex-1">
+            <button className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 text-xs font-semibold shadow-inner cursor-pointer">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Neural Voice</span>
+            </button>
+            <button className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-transparent text-slate-400 text-xs font-medium hover:text-white transition cursor-pointer">
+              <Globe className="w-3.5 h-3.5" />
+              <span>Browser Speech</span>
+            </button>
           </div>
+          <button className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400">
+            <Info className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Main Editor Card */}
-        <div className="w-full max-w-4xl rounded-3xl bg-white/[0.04] border border-white/10 backdrop-blur-2xl shadow-2xl p-5 sm:p-7 relative">
+        {/* Main Text Input Card */}
+        <div className="rounded-3xl bg-[#14161d] border border-white/10 p-4 sm:p-5 flex flex-col gap-4 shadow-xl">
           
-          {/* Preset Buttons */}
-          <div className="flex flex-wrap items-center gap-2 mb-4 pb-3 border-b border-white/10">
-            <span className="text-xs text-white/40 font-medium">Quick Scripts:</span>
-            {PRESET_SCRIPTS.map((preset, idx) => (
+          {/* Card Meta Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">INPUT TEXT SCRIPT</span>
+              <span className="text-xs text-slate-500">•</span>
+              <span className="text-xs text-slate-500">{charCount} chars • {wordCount} words</span>
+            </div>
+
+            <div className="flex items-center gap-2">
               <button
-                key={idx}
-                onClick={() => setText(preset.text)}
-                className="px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-white/80 transition cursor-pointer"
+                onClick={() => setText(SAMPLE_SCRIPTS[Math.floor(Math.random() * SAMPLE_SCRIPTS.length)])}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[11px] font-medium text-slate-300 hover:bg-white/10 transition cursor-pointer"
               >
-                {preset.label}
+                <BookOpen className="w-3 h-3 text-cyan-400" />
+                <span>Sample Scripts</span>
               </button>
-            ))}
+              
+              <button
+                onClick={handleCopy}
+                className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition cursor-pointer"
+                title="Copy Text"
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                onClick={() => setText('')}
+                className="px-2 py-1 text-[11px] font-bold text-cyan-400 hover:text-cyan-300 cursor-pointer uppercase tracking-wider"
+              >
+                CLEAR
+              </button>
+            </div>
           </div>
 
+          {/* Text Area */}
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            rows={4}
-            className="w-full bg-transparent text-white placeholder-white/30 text-base focus:outline-none resize-none font-normal leading-relaxed"
-            placeholder="Type or paste script here..."
+            rows={6}
+            className="w-full bg-transparent text-white placeholder-slate-600 text-sm sm:text-base leading-relaxed focus:outline-none resize-none font-sans"
+            placeholder="Type or paste your text here..."
           />
 
-          {errorMsg && (
-            <p className="text-rose-400 text-xs mb-3 font-medium">{errorMsg}</p>
-          )}
-
-          {/* Controls Panel */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-white/10 my-2">
-            
-            {/* Left: Language & Voice Filters */}
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <Globe className="w-4 h-4 text-cyan-400 shrink-0" />
-                <span className="text-xs font-semibold text-white/70">Language Filter:</span>
-                <select
-                  value={selectedLang}
-                  onChange={(e) => setSelectedLang(e.target.value)}
-                  className="bg-black/40 border border-white/15 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none cursor-pointer flex-1"
-                >
-                  <option value="all">All Languages</option>
-                  <option value="hi">Hindi (हिन्दी)</option>
-                  <option value="en">English</option>
-                  <option value="ja">Japanese</option>
-                  <option value="es">Spanish</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Music className="w-4 h-4 text-purple-400 shrink-0" />
-                <span className="text-xs font-semibold text-white/70">System Voice:</span>
-                <select
-                  value={selectedVoice}
-                  onChange={(e) => setSelectedVoice(e.target.value)}
-                  className="bg-black/40 border border-white/15 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none cursor-pointer flex-1 truncate"
-                >
-                  {filteredVoices.length === 0 ? (
-                    <option value="">No voice found</option>
-                  ) : (
-                    filteredVoices.map((v) => (
-                      <option key={v.name} value={v.name}>
-                        {v.name} ({v.lang})
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
+          {/* Vocal Tone & Style */}
+          <div className="pt-3 border-t border-white/5 flex flex-col gap-2.5">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+              <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+              <span>VOCAL TONE & STYLE</span>
             </div>
 
-            {/* Right: Sliders (Speed & Pitch) */}
-            <div className="flex flex-col gap-2.5 bg-black/20 p-3 rounded-2xl border border-white/5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-white/60 font-medium">Speed / Rate: {rate}x</span>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="1.8"
-                  step="0.1"
-                  value={rate}
-                  onChange={(e) => setRate(parseFloat(e.target.value))}
-                  className="w-28 accent-cyan-400 cursor-pointer"
-                />
-              </div>
-
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-white/60 font-medium">Pitch / Pitch Tone: {pitch}</span>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="1.8"
-                  step="0.1"
-                  value={pitch}
-                  onChange={(e) => setPitch(parseFloat(e.target.value))}
-                  className="w-28 accent-purple-400 cursor-pointer"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Visualizer & Action Bar */}
-          <div className="flex items-center justify-between pt-4 border-t border-white/10 mt-4">
-            
-            {/* Active Wave Visualizer */}
-            <div className="flex items-center gap-1.5 h-6">
-              {isSpeaking ? (
-                <>
-                  <div className="w-1 bg-cyan-400 h-full animate-bounce rounded-full" />
-                  <div className="w-1 bg-purple-400 h-3/4 animate-bounce rounded-full delay-100" />
-                  <div className="w-1 bg-pink-400 h-full animate-bounce rounded-full delay-200" />
-                  <div className="w-1 bg-cyan-400 h-1/2 animate-bounce rounded-full delay-300" />
-                  <span className="text-[11px] text-cyan-300 ml-2 font-medium">Speaking...</span>
-                </>
-              ) : (
-                <span className="text-[11px] text-white/30">Ready to speak</span>
-              )}
-            </div>
-
-            {/* Buttons */}
-            <div className="flex items-center gap-3">
-              {isSpeaking ? (
-                <button
-                  onClick={handleStop}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-rose-500 text-white font-bold text-xs hover:bg-rose-600 transition shadow-lg cursor-pointer"
-                >
-                  <Square className="w-3.5 h-3.5 fill-white" />
-                  <span>Stop Speech</span>
-                </button>
-              ) : (
-                <button
-                  onClick={handleGenerate}
-                  disabled={!text.trim()}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-cyan-400 to-purple-500 text-black font-extrabold text-xs hover:opacity-90 disabled:opacity-50 transition shadow-xl cursor-pointer"
-                >
-                  <span>Generate Voice</span>
-                  <Volume2 className="w-4 h-4 fill-black" />
-                </button>
-              )}
+            <div className="flex flex-wrap gap-2">
+              {STYLES.map((style) => {
+                const isActive = selectedStyle === style.id;
+                return (
+                  <button
+                    key={style.id}
+                    onClick={() => handleStyleSelect(style)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer border ${
+                      isActive
+                        ? 'bg-cyan-500/20 border-cyan-400/80 text-cyan-300 shadow-md shadow-cyan-500/10'
+                        : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    {style.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        <p className="text-[11px] text-white/30 mt-4">
-          Browser Native Neural Speech Engine • 100% Free & Unlimited
-        </p>
-      </main>
+        {/* Neural Voice Architecture Panel */}
+        <div className="rounded-3xl bg-[#14161d] border border-white/10 p-4 sm:p-5 flex flex-col gap-4 shadow-xl">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-white/5 pb-3">
+            <Mic className="w-3.5 h-3.5 text-cyan-400" />
+            <span>NEURAL VOICE ARCHITECTURE</span>
+          </div>
+
+          {/* Characters Selector */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {CHARACTERS.map((char) => {
+              const isActive = selectedChar === char.id;
+              return (
+                <button
+                  key={char.id}
+                  onClick={() => handleCharSelect(char.id)}
+                  className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition cursor-pointer ${
+                    isActive
+                      ? 'bg-cyan-500/15 border-cyan-400/80 text-white shadow-lg shadow-cyan-500/10'
+                      : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-200'
+                  }`}
+                >
+                  <User className={`w-4 h-4 mb-2 ${isActive ? 'text-cyan-400' : 'text-slate-500'}`} />
+                  <div>
+                    <h4 className="text-xs font-bold text-white leading-tight">{char.name}</h4>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{char.role}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Voice & Language Dropdowns */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
+              <Globe className="w-4 h-4 text-cyan-400 shrink-0" />
+              <select
+                value={selectedLang}
+                onChange={(e) => setSelectedLang(e.target.value)}
+                className="bg-transparent text-xs text-white focus:outline-none w-full cursor-pointer"
+              >
+                <option value="all" className="bg-[#14161d]">All Languages</option>
+                <option value="hi" className="bg-[#14161d]">Hindi (हिन्दी)</option>
+                <option value="en" className="bg-[#14161d]">English</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
+              <Music className="w-4 h-4 text-cyan-400 shrink-0" />
+              <select
+                value={selectedVoice}
+                onChange={(e) => setSelectedVoice(e.target.value)}
+                className="bg-transparent text-xs text-white focus:outline-none w-full cursor-pointer truncate"
+              >
+                {filteredVoices.map((v) => (
+                  <option key={v.name} value={v.name} className="bg-[#14161d]">
+                    {v.name} ({v.lang})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Generate / Stop Action Button */}
+        <div className="flex justify-end pt-2">
+          {isSpeaking ? (
+            <button
+              onClick={handleStop}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl bg-rose-500 text-white font-bold text-sm hover:bg-rose-600 transition shadow-lg cursor-pointer"
+            >
+              <Square className="w-4 h-4 fill-white" />
+              <span>Stop Speech</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleGenerate}
+              disabled={!text.trim()}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl bg-cyan-400 text-black font-extrabold text-sm hover:bg-cyan-300 disabled:opacity-50 transition shadow-xl shadow-cyan-400/20 cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 fill-black" />
+              <span>Generate Voice</span>
+            </button>
+          )}
+        </div>
+
+      </div>
     </div>
   );
 }
