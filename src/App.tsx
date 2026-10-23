@@ -1,56 +1,72 @@
-import React, { useState } from 'react';
-import { Play, Download, Sparkles, Volume2, Globe, Music, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Play, Square, Sparkles, Volume2, Globe, Music, RefreshCw } from 'lucide-react';
 
 export default function App() {
   const [text, setText] = useState<string>(
     'Welcome to Voiceify AI. Turn your ideas into a powerful voiceover in seconds.'
   );
-  const [selectedVoice, setSelectedVoice] = useState<string>('hi-IN-MadhurNeural');
-  const [selectedLang, setSelectedLang] = useState<string>('Hindi');
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<string>('');
+  const [selectedLang, setSelectedLang] = useState<string>('Hindi / English');
   const [style, setStyle] = useState<string>('Professional');
-  const [pitch, setPitch] = useState<string>('Normal');
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleGenerate = async () => {
-    if (!text.trim()) return;
-    setIsGenerating(true);
-    setErrorMsg(null);
-
-    try {
-      const response = await fetch('/.netlify/functions/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: text.trim(),
-          voice: selectedVoice,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate audio');
+  useEffect(() => {
+    const loadVoices = () => {
+      const availableVoices = window.speechSynthesis.getVoices();
+      setVoices(availableVoices);
+      if (availableVoices.length > 0 && !selectedVoice) {
+        // Default to a Hindi or English voice if available
+        const defaultV = availableVoices.find(v => v.lang.includes('hi') || v.lang.includes('en')) || availableVoices[0];
+        setSelectedVoice(defaultV.name);
       }
+    };
 
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      setAudioBlob(blob);
-      setAudioUrl(url);
-    } catch (err: any) {
-      console.error(err);
-      setErrorMsg('Could not generate speech. Please try again.');
-    } finally {
-      setIsGenerating(false);
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }, [selectedVoice]);
+
+  const handleGenerate = () => {
+    if (!text.trim()) return;
+
+    if (!('speechSynthesis' in window)) {
+      setErrorMsg('Speech synthesis is not supported in this browser.');
+      return;
     }
+
+    // Stop any ongoing speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voiceObj = voices.find(v => v.name === selectedVoice);
+    if (voiceObj) {
+      utterance.voice = voiceObj;
+    }
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setErrorMsg(null);
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+    };
+
+    utterance.onerror = (e) => {
+      console.error(e);
+      setIsSpeaking(false);
+      setErrorMsg('Could not generate speech. Please try again.');
+    };
+
+    window.speechSynthesis.speak(utterance);
   };
 
-  const handleDownload = () => {
-    if (!audioBlob) return;
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(audioBlob);
-    a.download = 'voiceover-' + Date.now() + '.mp3';
-    a.click();
+  const handleStop = () => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
   };
 
   return (
@@ -124,18 +140,18 @@ export default function App() {
               <select
                 value={selectedVoice}
                 onChange={(e) => setSelectedVoice(e.target.value)}
-                className="bg-white/10 hover:bg-white/15 border border-white/15 rounded-full px-3.5 py-1.5 text-xs text-white/90 font-medium focus:outline-none backdrop-blur-md cursor-pointer"
+                className="bg-white/10 hover:bg-white/15 border border-white/15 rounded-full px-3.5 py-1.5 text-xs text-white/90 font-medium focus:outline-none backdrop-blur-md cursor-pointer max-w-[200px] truncate"
               >
-                <option value="hi-IN-MadhurNeural" className="bg-[#181820] text-white">Madhur (Hindi Male)</option>
-                <option value="hi-IN-SwaraNeural" className="bg-[#181820] text-white">Swara (Hindi Female)</option>
-                <option value="en-US-GuyNeural" className="bg-[#181820] text-white">Guy (English Male)</option>
-                <option value="en-US-AriaNeural" className="bg-[#181820] text-white">Aria (English Female)</option>
-                <option value="en-GB-SoniaNeural" className="bg-[#181820] text-white">Sonia (British Female)</option>
+                {voices.map((v) => (
+                  <option key={v.name} value={v.name} className="bg-[#181820] text-white">
+                    {v.name} ({v.lang})
+                  </option>
+                ))}
               </select>
 
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-xs font-medium text-white/80 backdrop-blur-md">
                 <Globe className="w-3.5 h-3.5 text-white/60" />
-                <span>{selectedLang}</span>
+                <span>Neural Voice</span>
               </div>
 
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-xs font-medium text-white/80 backdrop-blur-md">
@@ -146,50 +162,34 @@ export default function App() {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2 ml-auto">
-              {audioUrl && (
+              {isSpeaking ? (
                 <button
-                  onClick={handleDownload}
-                  className="p-2.5 rounded-full bg-white/15 hover:bg-white/25 text-white transition backdrop-blur-md"
-                  title="Download Audio"
+                  onClick={handleStop}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-rose-500 text-white font-bold text-xs hover:bg-rose-600 transition shadow-lg cursor-pointer"
                 >
-                  <Download className="w-4 h-4" />
+                  <Square className="w-3.5 h-3.5 fill-white" />
+                  <span>Stop</span>
+                </button>
+              ) : (
+                <button
+                  onClick={handleGenerate}
+                  disabled={!text.trim()}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white text-black font-bold text-xs hover:bg-white/90 disabled:opacity-50 transition shadow-lg cursor-pointer"
+                >
+                  <span>Generate Voice</span>
+                  <Volume2 className="w-3.5 h-3.5 fill-black" />
                 </button>
               )}
-
-              <button
-                onClick={handleGenerate}
-                disabled={isGenerating || !text.trim()}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white text-black font-bold text-xs hover:bg-white/90 disabled:opacity-50 transition shadow-lg cursor-pointer"
-              >
-                {isGenerating ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Generating...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Generate Voice</span>
-                    <Volume2 className="w-3.5 h-3.5 fill-black" />
-                  </>
-                )}
-              </button>
             </div>
           </div>
-
-          {/* Hidden Audio Player */}
-          {audioUrl && (
-            <div className="mt-4 pt-3 border-t border-white/10 flex items-center gap-3">
-              <audio src={audioUrl} controls className="w-full h-8 rounded-lg accent-white" autoPlay />
-            </div>
-          )}
         </div>
 
         <p className="text-xs text-white/40 mt-4">
-          No credit card required • Unlimited free generations • Edge Neural Voices
+          No credit card required • Unlimited free generations • Instant Browser Synthesis
         </p>
 
         {/* Footer Sponsor Logos */}
-        <div className="mt-16 w-full max-w-4xl pt-8 border-t border-white/10">
+        <div className="mt-16 w-4/5 max-w-4xl pt-8 border-t border-white/10">
           <p className="text-xs text-white/40 mb-6 uppercase tracking-wider font-semibold">
             Trusted by creators from
           </p>
