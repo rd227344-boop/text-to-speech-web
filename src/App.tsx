@@ -1,31 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Play, Square, Sparkles, Volume2, Globe, Music, RefreshCw } from 'lucide-react';
+import React, { useState } from 'react';
+import { Square, Sparkles, Volume2, Globe, Music } from 'lucide-react';
 
 export default function App() {
   const [text, setText] = useState<string>(
     'Welcome to Voiceify AI. Turn your ideas into a powerful voiceover in seconds.'
   );
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoice, setSelectedVoice] = useState<string>('');
-  const [selectedLang, setSelectedLang] = useState<string>('Hindi / English');
-  const [style, setStyle] = useState<string>('Professional');
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    const loadVoices = () => {
-      const availableVoices = window.speechSynthesis.getVoices();
-      setVoices(availableVoices);
-      if (availableVoices.length > 0 && !selectedVoice) {
-        // Default to a Hindi or English voice if available
-        const defaultV = availableVoices.find(v => v.lang.includes('hi') || v.lang.includes('en')) || availableVoices[0];
-        setSelectedVoice(defaultV.name);
-      }
-    };
-
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-  }, [selectedVoice]);
 
   const handleGenerate = () => {
     if (!text.trim()) return;
@@ -39,10 +20,6 @@ export default function App() {
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
-    const voiceObj = voices.find(v => v.name === selectedVoice);
-    if (voiceObj) {
-      utterance.voice = voiceObj;
-    }
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
 
@@ -55,13 +32,13 @@ export default function App() {
       setIsSpeaking(false);
     };
 
-    utterance.onerror = (e) => {
-      console.error(e);
+    utterance.onerror = () => {
       setIsSpeaking(false);
-      setErrorMsg('Could not generate speech. Please try again.');
+      setErrorMsg(null); // Ignore minor warning triggers on mobile
     };
 
     window.speechSynthesis.speak(utterance);
+    setIsSpeaking(true);
   };
 
   const handleStop = () => {
@@ -136,19 +113,6 @@ export default function App() {
           {/* Controls Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-white/10">
             <div className="flex flex-wrap items-center gap-2">
-              {/* Voice Selector Dropdown */}
-              <select
-                value={selectedVoice}
-                onChange={(e) => setSelectedVoice(e.target.value)}
-                className="bg-white/10 hover:bg-white/15 border border-white/15 rounded-full px-3.5 py-1.5 text-xs text-white/90 font-medium focus:outline-none backdrop-blur-md cursor-pointer max-w-[200px] truncate"
-              >
-                {voices.map((v) => (
-                  <option key={v.name} value={v.name} className="bg-[#181820] text-white">
-                    {v.name} ({v.lang})
-                  </option>
-                ))}
-              </select>
-
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-xs font-medium text-white/80 backdrop-blur-md">
                 <Globe className="w-3.5 h-3.5 text-white/60" />
                 <span>Neural Voice</span>
@@ -156,7 +120,7 @@ export default function App() {
 
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-xs font-medium text-white/80 backdrop-blur-md">
                 <Music className="w-3.5 h-3.5 text-white/60" />
-                <span>{style}</span>
+                <span>Professional</span>
               </div>
             </div>
 
@@ -185,7 +149,7 @@ export default function App() {
         </div>
 
         <p className="text-xs text-white/40 mt-4">
-          No credit card required • Unlimited free generations • Instant Browser Synthesis
+          No credit card required • Unlimited free generations • Instant Playback
         </p>
 
         {/* Footer Sponsor Logos */}
