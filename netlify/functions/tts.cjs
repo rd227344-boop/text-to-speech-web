@@ -1,12 +1,17 @@
 const { MsEdgeTTS, OUTPUT_FORMAT } = require('edge-tts-universal');
+const fs = require('fs');
+const path = require('path');
 
-exports.handler = async (event, context) => {
+exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
+    return {
+      statusCode: 405,
+      body: JSON.stringify({ error: 'Method Not Allowed' }),
+    };
   }
 
   try {
-    const { text, voice } = JSON.parse(event.body);
+    const { text, voice = 'hi-IN-MadhurNeural' } = JSON.parse(event.body || '{}');
 
     if (!text) {
       return {
@@ -15,33 +20,36 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const selectedVoice = voice || 'hi-IN-MadhurNeural';
-
     const tts = new MsEdgeTTS();
-    await tts.setMetadata(selectedVoice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
+    await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_STEREO);
 
-    const { audioStream } = tts.toStream(text);
+    // Netlify functions only allow writing to /tmp directory
+    const tmpFilePath = path.join('/tmp', `audio-${Date.now()}.mp3`);
+    
+    const filePath = await tts.toStream(text, tmpFilePath);
+    const finalPath = filePath || tmpFilePath;
 
-    const chunks = [];
-    for await (const chunk of audioStream) {
-      chunks.push(chunk);
-    }
-    const audioBuffer = Buffer.concat(chunks);
+    const audioBuffer = fs.readFileSync(finalPath);
+
+    // Clean up temporary file
+    try { 
+      fs.unlinkSync(finalPath); 
+    } catch (e) {}
 
     return {
       statusCode: 200,
       headers: {
         'Content-Type': 'audio/mpeg',
-        'Content-Disposition': 'attachment; filename="speech.mp3"',
+        'Content-Disposition': 'inline; filename="speech.mp3"',
       },
       body: audioBuffer.toString('base64'),
       isBase64Encoded: true,
     };
   } catch (error) {
-    console.error('TTS Error:', error);
+    console.error('Edge TTS Error:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to generate audio' }),
+      body: JSON.stringify({ error: error.message || 'TTS generation failed' }),
     };
   }
 };
