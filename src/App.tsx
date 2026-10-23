@@ -145,7 +145,7 @@ export default function App() {
     setErrorMessage(null);
   };
 
-  // Convert via Gemini AI
+    // Convert via Edge TTS Netlify Function
   const handleGenerateGeminiTTS = async () => {
     if (!text.trim()) {
       setErrorMessage('Please enter some text before converting to speech.');
@@ -156,33 +156,28 @@ export default function App() {
     setErrorMessage(null);
 
     try {
-      const res = await fetch('https://backend-file-speech.onrender.com/api/tts', {
-        
+      const res = await fetch('/.netlify/functions/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: text.trim(),
-          voice: selectedVoice,
-          tone: tone,
-          multiSpeaker: isMultiSpeaker,
-          speaker1: isMultiSpeaker ? speaker1 : undefined,
-          speaker2: isMultiSpeaker ? speaker2 : undefined,
+          voice: selectedVoice || 'hi-IN-MadhurNeural',
         }),
       });
 
-      const data: TTSResponse = await res.json();
-
-      if (!res.ok || data.error) {
-        throw new Error(data.error || 'Failed to synthesize speech.');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to synthesize speech.');
       }
 
-      const audioBlob = base64ToBlob(data.audioBase64, data.mimeType || 'audio/wav');
+      // Blob receive karna aur URL banana
+      const audioBlob = await res.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
 
       setCurrentAudioBlob(audioBlob);
       setCurrentAudioUrl(audioUrl);
-      setCurrentDuration(data.durationSeconds || 0);
-      setCurrentPlayedVoice(data.voice || selectedVoice);
+      setCurrentDuration(0);
+      setCurrentPlayedVoice(selectedVoice);
       setCurrentPlayedTone(tone);
       setCurrentTextSnippet(text.trim().substring(0, 100));
 
@@ -190,11 +185,10 @@ export default function App() {
       const historyItem: TTSHistoryItem = {
         id: `tts-${Date.now()}`,
         text: text.trim(),
-        voice: data.voice || selectedVoice,
+        voice: selectedVoice,
         engine: 'gemini',
         audioUrl: audioUrl,
-        audioBase64: data.audioBase64,
-        durationSeconds: data.durationSeconds || 0,
+        durationSeconds: 0,
         createdAt: Date.now(),
         tone: tone,
       };
@@ -202,7 +196,7 @@ export default function App() {
       setHistory((prev) => [historyItem, ...prev]);
     } catch (err: any) {
       console.error('Generation Error:', err);
-            setErrorMessage(friendlyError(err));
+      setErrorMessage(friendlyError(err));
     } finally {
       setIsGenerating(false);
     }
